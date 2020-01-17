@@ -28,8 +28,7 @@ void kull_m_string_printSuspectUnicodeString(PVOID data, DWORD size)
 	UNICODE_STRING uString = {(USHORT) size, (USHORT) size, (LPWSTR) data};
 	if(kull_m_string_suspectUnicodeString(&uString))
 		kprintf(L"%wZ", &uString);
-	else 
-		kull_m_string_wprintf_hex(uString.Buffer, uString.Length, 1);
+	else kull_m_string_wprintf_hex(uString.Buffer, uString.Length, 1);
 }
 
 void kull_m_string_MakeRelativeOrAbsoluteString(PVOID BaseAddress, PLSA_UNICODE_STRING String, BOOL relative)
@@ -402,6 +401,23 @@ BOOL kull_m_string_quick_base64_to_Binary(PCWSTR base64, PBYTE *data, DWORD *szD
 	}
 	return status;
 }
+
+BOOL kull_m_string_EncodeB64_headersA(LPCSTR type, const PBYTE pbData, const DWORD cbData, LPSTR *out)
+{
+	BOOL status = FALSE;
+	DWORD dwBytesWritten = 0;
+	LPSTR base64;
+	if(CryptBinaryToStringA(pbData, cbData, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, NULL, &dwBytesWritten))
+	{
+		if(base64 = (LPSTR) LocalAlloc(LPTR, dwBytesWritten))
+		{
+			if(CryptBinaryToStringA(pbData, cbData, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCR, base64, &dwBytesWritten))
+				status = kull_m_string_sprintfA(out, "-----BEGIN %s-----\n%s-----END %s-----\n", type, base64, type);
+			LocalFree(base64);
+		}
+	}
+	return status;
+}
 #endif
 
 BOOL kull_m_string_sprintf(PWSTR *outBuffer, PCWSTR format, ...)
@@ -420,6 +436,27 @@ BOOL kull_m_string_sprintf(PWSTR *outBuffer, PCWSTR format, ...)
 			if(varBuf > 0)
 				status = TRUE;
 			else *outBuffer = (PWSTR) LocalFree(outBuffer);
+		}
+	}
+	return status;
+}
+
+BOOL kull_m_string_sprintfA(PSTR *outBuffer, PCSTR format, ...)
+{
+	BOOL status = FALSE;
+	int varBuf;
+	va_list args;
+	va_start(args, format);
+	varBuf = _vscprintf(format, args);
+	if(varBuf > 0)
+	{
+		varBuf++;
+		if(*outBuffer = (PSTR) LocalAlloc(LPTR, varBuf * sizeof(char)))
+		{
+			varBuf = vsprintf_s(*outBuffer, varBuf, format, args);
+			if(varBuf > 0)
+				status = TRUE;
+			else *outBuffer = (PSTR) LocalFree(outBuffer);
 		}
 	}
 	return status;
